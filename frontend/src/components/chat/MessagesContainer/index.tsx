@@ -92,9 +92,36 @@ const MessagesContainer = ({ navigate }: Props) => {
   );
 
   useEffect(() => {
-    if (!elements.some((element) => element.display === 'side')) {
+    const sideElements = elements.filter(
+      (element) => element.display === 'side'
+    );
+    if (sideElements.length === 0) {
       setSideView(undefined);
+      return;
     }
+
+    // Refresh the current selection without reopening a closed preview or
+    // selecting unrelated elements that arrive later.
+    setSideView((current) => {
+      if (!current) return current;
+      const updatedElements = current.elements.map(
+        (selected) =>
+          sideElements.find((element) => element.id === selected.id) ?? selected
+      );
+      if (
+        updatedElements.every(
+          (element, index) => element === current.elements[index]
+        )
+      ) {
+        return current;
+      }
+      const title =
+        current.elements.length === 1 &&
+        current.title === current.elements[0].name
+          ? updatedElements[0].name
+          : current.title;
+      return { ...current, title, elements: updatedElements };
+    });
   }, [elements, setSideView]);
 
   const onElementRefClick = useCallback(

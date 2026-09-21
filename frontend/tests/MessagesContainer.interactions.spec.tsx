@@ -66,7 +66,7 @@ function setElements(elements: IMessageElement[]) {
 function SideView() {
   const [view, setView] = useRecoilState(sideViewState);
   return view ? (
-    <aside aria-label="Element preview">
+    <aside aria-label="Element preview" data-sidebar-key={view.key}>
       <p>{view.title}</p>
       <output aria-label="Preview URL">{view.elements[0]?.url}</output>
       <button onClick={() => setView(undefined)}>Close preview</button>
@@ -126,20 +126,59 @@ describe('MessagesContainer explicit preview intent', () => {
     expect(screen.queryByRole('complementary')).not.toBeInTheDocument();
   });
 
-  it.fails(
-    'refreshes an open preview when the selected element is updated',
-    () => {
-      setElements([{ ...element('First'), url: '/version-1.txt' }]);
-      const { rerender } = render(<App />);
-      fireEvent.click(screen.getByRole('link', { name: 'First' }));
-      expect(screen.getByLabelText('Preview URL')).toHaveTextContent(
-        '/version-1.txt'
-      );
-      setElements([{ ...element('First'), url: '/version-2.txt' }]);
-      rerender(<App />);
-      expect(screen.getByLabelText('Preview URL')).toHaveTextContent(
-        '/version-2.txt'
-      );
-    }
-  );
+  it('refreshes an open preview when the selected element is updated', () => {
+    setElements([{ ...element('First'), url: '/version-1.txt' }]);
+    const { rerender } = render(<App />);
+    fireEvent.click(screen.getByRole('link', { name: 'First' }));
+    expect(screen.getByLabelText('Preview URL')).toHaveTextContent(
+      '/version-1.txt'
+    );
+    setElements([{ ...element('First'), url: '/version-2.txt' }]);
+    rerender(<App />);
+    expect(screen.getByLabelText('Preview URL')).toHaveTextContent(
+      '/version-2.txt'
+    );
+  });
+  it('preserves a custom title and sidebar key when content changes', () => {
+    const selected = element('First');
+    setElements([selected]);
+    const { rerender } = render(
+      <RecoilRoot
+        initializeState={({ set }) =>
+          set(sideViewState, {
+            title: 'Custom title',
+            key: 'server-key',
+            elements: [selected]
+          })
+        }
+      >
+        <MessagesContainer />
+        <SideView />
+      </RecoilRoot>
+    );
+    setElements([{ ...selected, name: 'Renamed', url: '/updated.txt' }]);
+    rerender(
+      <RecoilRoot>
+        <MessagesContainer />
+        <SideView />
+      </RecoilRoot>
+    );
+    expect(screen.getByRole('complementary')).toHaveTextContent('Custom title');
+    expect(screen.getByLabelText('Preview URL')).toHaveTextContent(
+      '/updated.txt'
+    );
+    expect(screen.getByRole('complementary')).toHaveAttribute(
+      'data-sidebar-key',
+      'server-key'
+    );
+  });
+
+  it('updates the default preview title when the selected element is renamed', () => {
+    setElements([element('First')]);
+    const { rerender } = render(<App />);
+    fireEvent.click(screen.getByRole('link', { name: 'First' }));
+    setElements([element('First', 'Renamed')]);
+    rerender(<App />);
+    expect(screen.getByRole('complementary')).toHaveTextContent('Renamed');
+  });
 });
