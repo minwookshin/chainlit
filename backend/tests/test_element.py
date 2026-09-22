@@ -92,6 +92,30 @@ class TestElementBase:
             assert element.for_id == "message_123"
             ctx.emitter.send_element.assert_called_once()
 
+    @pytest.mark.parametrize("auto_expand", [True, False])
+    @pytest.mark.parametrize(
+        ("element_type", "kwargs"),
+        [
+            (Text, {"content": "Reference"}),
+            (File, {"url": "https://example.com/reference.pdf"}),
+            (CustomElement, {"props": {"label": "Reference"}}),
+        ],
+    )
+    async def test_side_element_auto_expand_is_a_live_presentation_hint(
+        self, mock_chainlit_context, auto_expand, element_type, kwargs
+    ):
+        async with mock_chainlit_context as ctx:
+            element = element_type(
+                name="Sources",
+                display="side",
+                auto_expand=auto_expand,
+                **kwargs,
+            )
+            await element.send(for_id="message_123")
+            payload = ctx.emitter.send_element.call_args.args[0]
+            assert payload.get("autoExpand", True) is auto_expand
+            assert "autoExpand" not in element.to_dict()
+
     async def test_element_remove(self, mock_chainlit_context):
         """Test Element.remove() method."""
         async with mock_chainlit_context as ctx:
