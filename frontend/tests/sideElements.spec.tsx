@@ -22,10 +22,12 @@ function renderPanel(elements: IMessageElement[]) {
       const [panel, setPanel] = useState<{
         title: string;
         elements: IMessageElement[];
+        key?: string;
       }>();
       useSideElements(elements, setPanel);
       return {
         panel,
+        setPanel,
         close: () => setPanel(undefined),
         open: (el: IMessageElement) =>
           setPanel({ title: el.name, elements: [el] })
@@ -73,6 +75,64 @@ describe('side element arrivals', () => {
     rerender({ elements: [{ ...element('inline'), display: 'inline' }] });
     expect(result.current.panel).toBeUndefined();
     rerender({ elements: [element('quiet', false)] });
+    expect(result.current.panel).toBeUndefined();
+  });
+
+  it.each(['inline', 'page'] as const)(
+    'preserves a sidebar opened by title when a %s element arrives',
+    (display) => {
+      const { result, rerender } = renderPanel([]);
+      const sidebar = { title: 'API sidebar', elements: [] };
+      act(() => result.current.setPanel(sidebar));
+
+      rerender({ elements: [{ ...element('arrival'), display }] });
+
+      expect(result.current.panel).toBe(sidebar);
+    }
+  );
+
+  it.each(['inline', 'page'] as const)(
+    'preserves programmatic sidebar elements when a %s element arrives or updates',
+    (display) => {
+      const content: IMessageElement = {
+        ...element('api-content'),
+        display: 'inline'
+      };
+      const { result, rerender } = renderPanel([content]);
+      const sidebar = { title: 'API sidebar', elements: [content], key: 'api' };
+      act(() => result.current.setPanel(sidebar));
+      const arrival: IMessageElement = { ...element('arrival'), display };
+
+      rerender({ elements: [content, arrival] });
+      expect(result.current.panel).toBe(sidebar);
+
+      rerender({ elements: [content, { ...arrival, name: 'updated' }] });
+      expect(result.current.panel).toBe(sidebar);
+    }
+  );
+
+  it.each(['api-content', 'tracked'])(
+    'preserves a replacement sidebar (%s) when tracked side content is removed',
+    (id) => {
+      const tracked = element('tracked');
+      const content: IMessageElement = { ...element(id), display: 'inline' };
+      const { result, rerender } = renderPanel([tracked]);
+      const sidebar = { title: 'API sidebar', elements: [content], key: 'api' };
+      act(() => result.current.setPanel(sidebar));
+
+      rerender({ elements: [content] });
+
+      expect(result.current.panel).toBe(sidebar);
+    }
+  );
+
+  it('clears an explicitly opened side element when it is removed', () => {
+    const quiet = element('quiet', false);
+    const { result, rerender } = renderPanel([quiet]);
+    act(() => result.current.open(quiet));
+
+    rerender({ elements: [] });
+
     expect(result.current.panel).toBeUndefined();
   });
 });

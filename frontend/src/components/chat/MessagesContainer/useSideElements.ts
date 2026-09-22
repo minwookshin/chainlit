@@ -14,15 +14,22 @@ export function useSideElements(
 
   useEffect(() => {
     const sideElements = elements.filter((e) => e.display === 'side');
+    const prevMap = knownSideElementsRef.current;
 
     if (sideElements.length === 0) {
       knownSideElementsRef.current = new Map();
       knownSideOrderRef.current = [];
-      setSideView(undefined);
+      // Other callers, such as ElementSidebar, share this view state.
+      setSideView((current) =>
+        current?.elements.some(
+          (element) => element.display === 'side' && prevMap.has(element.id)
+        )
+          ? undefined
+          : current
+      );
       return;
     }
 
-    const prevMap = knownSideElementsRef.current;
     const prevOrder = knownSideOrderRef.current;
     const currentIds = sideElements.map((e) => e.id);
 
