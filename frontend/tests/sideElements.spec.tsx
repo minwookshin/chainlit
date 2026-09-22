@@ -4,7 +4,10 @@ import { describe, expect, it } from 'vitest';
 
 import type { IMessageElement } from '@chainlit/react-client';
 
-import { useSideElements } from '../src/components/chat/MessagesContainer/useSideElements';
+import {
+  createMessageSideView,
+  useSideElements
+} from '../src/components/chat/MessagesContainer/useSideElements';
 
 const element = (id: string, autoExpand?: boolean): IMessageElement => ({
   id,
@@ -29,8 +32,7 @@ function renderPanel(elements: IMessageElement[]) {
         panel,
         setPanel,
         close: () => setPanel(undefined),
-        open: (el: IMessageElement) =>
-          setPanel({ title: el.name, elements: [el] })
+        open: (el: IMessageElement) => setPanel(createMessageSideView([el]))
       };
     },
     { initialProps: { elements } }
@@ -134,5 +136,40 @@ describe('side element arrivals', () => {
     rerender({ elements: [] });
 
     expect(result.current.panel).toBeUndefined();
+  });
+
+  it.each(['title', 'elements'])(
+    'preserves a sidebar replaced by the %s API when its side element is removed',
+    (update) => {
+      const tracked = element('tracked');
+      const { result, rerender } = renderPanel([tracked]);
+      act(() =>
+        result.current.setPanel((current) =>
+          update === 'title'
+            ? { title: 'Custom title', elements: current?.elements || [] }
+            : {
+                title: current?.title || '',
+                elements: [tracked],
+                key: 'api'
+              }
+        )
+      );
+      const sidebar = result.current.panel;
+
+      rerender({ elements: [] });
+
+      expect(result.current.panel).toBe(sidebar);
+    }
+  );
+
+  it('keeps an explicitly opened page preview on unrelated inline arrivals', () => {
+    const page: IMessageElement = { ...element('page'), display: 'page' };
+    const { result, rerender } = renderPanel([page]);
+    act(() => result.current.open(page));
+    const sidebar = result.current.panel;
+
+    rerender({ elements: [page, { ...element('inline'), display: 'inline' }] });
+
+    expect(result.current.panel).toBe(sidebar);
   });
 });

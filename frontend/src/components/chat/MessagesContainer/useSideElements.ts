@@ -5,6 +5,20 @@ import type { IMessageElement } from '@chainlit/react-client';
 
 type SideView = { title: string; elements: IMessageElement[] } | undefined;
 
+// The shared view can outlive this hook during navigation between threads.
+const messageSideViews = new WeakSet<NonNullable<SideView>>();
+
+export function createMessageSideView(elements: IMessageElement[]) {
+  const view = {
+    title: elements[elements.length - 1].name,
+    elements
+  };
+  if (elements.some((element) => element.display === 'side')) {
+    messageSideViews.add(view);
+  }
+  return view;
+}
+
 export function useSideElements(
   elements: IMessageElement[],
   setSideView: SetterOrUpdater<SideView>
@@ -14,22 +28,18 @@ export function useSideElements(
 
   useEffect(() => {
     const sideElements = elements.filter((e) => e.display === 'side');
-    const prevMap = knownSideElementsRef.current;
 
     if (sideElements.length === 0) {
       knownSideElementsRef.current = new Map();
       knownSideOrderRef.current = [];
       // Other callers, such as ElementSidebar, share this view state.
       setSideView((current) =>
-        current?.elements.some(
-          (element) => element.display === 'side' && prevMap.has(element.id)
-        )
-          ? undefined
-          : current
+        current && messageSideViews.has(current) ? undefined : current
       );
       return;
     }
 
+    const prevMap = knownSideElementsRef.current;
     const prevOrder = knownSideOrderRef.current;
     const currentIds = sideElements.map((e) => e.id);
 
@@ -47,14 +57,8 @@ export function useSideElements(
         (element) =>
           prevMap.get(element.id) !== element && element.autoExpand !== false
       );
-      setSideView((current) =>
-        current || shouldOpen
-          ? {
-              title: sideElements[sideElements.length - 1].name,
-              elements: sideElements
-            }
-          : current
-      );
+      const nextView = createMessageSideView(sideElements);
+      setSideView((current) => (current || shouldOpen ? nextView : current));
     }
   }, [elements, setSideView]);
 }

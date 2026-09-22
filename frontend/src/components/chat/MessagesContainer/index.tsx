@@ -21,7 +21,7 @@ import {
 import { Messages } from '@/components/chat/Messages';
 import { useTranslation } from 'components/i18n/Translator';
 
-import { useSideElements } from './useSideElements';
+import { createMessageSideView, useSideElements } from './useSideElements';
 
 interface Props {
   navigate?: (to: string) => void;
@@ -101,7 +101,7 @@ const MessagesContainer = ({ navigate }: Props) => {
         element.display === 'side' ||
         (element.display === 'page' && !navigate)
       ) {
-        setSideView({ title: element.name, elements: [element] });
+        setSideView(createMessageSideView([element]));
         return;
       }
 
