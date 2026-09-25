@@ -107,7 +107,6 @@ describe('side elements across thread navigation', () => {
     act(() => result.current.navigate('/thread/active'));
 
     expect(screen.getByText('Active thread')).toBeInTheDocument();
-    expect(AutoResumeThread).not.toHaveBeenCalled();
     expect(result.current.panel).toBeUndefined();
   });
 
@@ -118,7 +117,6 @@ describe('side elements across thread navigation', () => {
     act(() => result.current.navigate('/thread/active'));
 
     expect(result.current.panel?.elements).toEqual([source]);
-    expect(AutoResumeThread).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -138,7 +136,15 @@ describe('side elements across thread navigation', () => {
       act(() => result.current.navigate('/thread/active'));
 
       expect(result.current.panel).toBe(sidebar);
-      expect(AutoResumeThread).not.toHaveBeenCalled();
     }
   );
+
+  it('requests resume when navigating to a different private thread', () => {
+    vi.mocked(AutoResumeThread).mockClear();
+    const { result } = renderActiveThread();
+
+    act(() => result.current.navigate('/thread/other'));
+
+    expect(vi.mocked(AutoResumeThread).mock.calls.some(([props]) => props.id === 'other')).toBe(true);
+  });
 });

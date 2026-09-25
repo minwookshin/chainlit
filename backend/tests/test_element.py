@@ -116,6 +116,31 @@ class TestElementBase:
             assert payload.get("autoExpand", True) is auto_expand
             assert "autoExpand" not in element.to_dict()
 
+    async def test_custom_element_rest_update_preserves_collapsed_hint(
+        self, mock_chainlit_context
+    ):
+        from chainlit.server import _sanitize_custom_element
+
+        async with mock_chainlit_context as ctx:
+            element = _sanitize_custom_element(
+                {
+                    "id": "custom-1",
+                    "type": "custom",
+                    "name": "Sources",
+                    "display": "side",
+                    "props": {"label": "Reference"},
+                    "autoExpand": False,
+                }
+            )
+            await element.update()
+            payload = ctx.emitter.send_element.call_args.args[0]
+            assert payload["autoExpand"] is False
+
+            default_element = _sanitize_custom_element(
+                {"id": "custom-2", "type": "custom", "name": "Sources", "display": "side"}
+            )
+            assert default_element.auto_expand is True
+
     async def test_element_remove(self, mock_chainlit_context):
         """Test Element.remove() method."""
         async with mock_chainlit_context as ctx:
