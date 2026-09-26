@@ -18,7 +18,10 @@ import {
 } from '@chainlit/react-client';
 
 import AutoResumeThread from '@/components/AutoResumeThread';
-import { useSideElements } from '@/components/chat/MessagesContainer/useSideElements';
+import {
+  createMessageSideView,
+  useSideElements
+} from '@/components/chat/MessagesContainer/useSideElements';
 
 vi.mock('@chainlit/react-client', async () => {
   const { atom } = await import('recoil');
@@ -119,6 +122,17 @@ describe('side elements across thread navigation', () => {
     expect(result.current.panel?.elements).toEqual([source]);
   });
 
+  it('clears a side view opened in a shared thread when the active thread is empty', () => {
+    const { result } = renderActiveThread();
+
+    act(() => result.current.navigate('/share/other'));
+    act(() => result.current.setPanel(createMessageSideView([source])));
+    act(() => result.current.setElements([]));
+    act(() => result.current.navigate('/thread/active'));
+
+    expect(result.current.panel).toBeUndefined();
+  });
+
   it.each([
     { name: 'title-only', elements: [] },
     { name: 'inline', elements: [{ ...source, display: 'inline' as const }] },
@@ -145,6 +159,6 @@ describe('side elements across thread navigation', () => {
 
     act(() => result.current.navigate('/thread/other'));
 
-    expect(vi.mocked(AutoResumeThread).mock.calls.some(([props]) => props.id === 'other')).toBe(true);
+    expect(AutoResumeThread).toHaveBeenCalledWith({ id: 'other' }, {});
   });
 });
