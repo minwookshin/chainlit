@@ -95,6 +95,17 @@ function renderActiveThread() {
 }
 
 describe('side elements across thread navigation', () => {
+  it('clears a page preview removed while the active thread is unmounted', () => {
+    const { result } = renderActiveThread();
+    const page = { ...source, display: 'page' as const };
+    act(() => result.current.setElements([page]));
+    act(() => result.current.setPanel(createMessageSideView([page])));
+    act(() => result.current.navigate('/share/other'));
+    act(() => result.current.setElements([]));
+    act(() => result.current.navigate('/thread/active'));
+    expect(result.current.panel).toBeUndefined();
+  });
+
   it('clears stale automatic content when returning from a shared thread', () => {
     const { result } = renderActiveThread();
     expect(result.current.panel?.elements).toEqual([source]);

@@ -40,6 +40,41 @@ function renderPanel(elements: IMessageElement[]) {
 }
 
 describe('side element arrivals', () => {
+  it('clears an explicitly opened page preview when its element is removed', () => {
+    const page: IMessageElement = { ...element('page'), display: 'page' };
+    const { result, rerender } = renderPanel([page]);
+    act(() => result.current.open(page));
+    rerender({ elements: [] });
+    expect(result.current.panel).toBeUndefined();
+  });
+
+  it('refreshes a page preview without replacing it with unrelated side arrivals', () => {
+    const page: IMessageElement = { ...element('page'), display: 'page' };
+    const { result, rerender } = renderPanel([page]);
+    act(() => result.current.open(page));
+    const sidebar = result.current.panel;
+    const side = element('side');
+    rerender({ elements: [page, side] });
+    expect(result.current.panel).toBe(sidebar);
+    const updated = {
+      ...page,
+      name: 'Updated page',
+      url: 'https://example.com/new'
+    };
+    rerender({ elements: [updated, side] });
+    expect(result.current.panel?.elements).toEqual([updated]);
+    expect(result.current.panel?.title).toBe('Updated page');
+  });
+
+  it('closes a deleted page preview while quiet side elements remain', () => {
+    const page: IMessageElement = { ...element('page'), display: 'page' };
+    const side = element('side', false);
+    const { result, rerender } = renderPanel([page, side]);
+    act(() => result.current.open(page));
+    rerender({ elements: [side] });
+    expect(result.current.panel).toBeUndefined();
+  });
+
   it('opens new elements by default', () => {
     const { result } = renderPanel([element('source')]);
     expect(result.current.panel?.title).toBe('source');

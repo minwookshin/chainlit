@@ -13,9 +13,7 @@ export function createMessageSideView(elements: IMessageElement[]) {
     title: elements[elements.length - 1].name,
     elements
   };
-  if (elements.some((element) => element.display === 'side')) {
-    messageSideViews.add(view);
-  }
+  messageSideViews.add(view);
   return view;
 }
 
@@ -29,16 +27,6 @@ export function useSideElements(
   useEffect(() => {
     const sideElements = elements.filter((e) => e.display === 'side');
 
-    if (sideElements.length === 0) {
-      knownSideElementsRef.current = new Map();
-      knownSideOrderRef.current = [];
-      // Other callers, such as ElementSidebar, share this view state.
-      setSideView((current) =>
-        current && messageSideViews.has(current) ? undefined : current
-      );
-      return;
-    }
-
     const prevMap = knownSideElementsRef.current;
     const prevOrder = knownSideOrderRef.current;
     const currentIds = sideElements.map((e) => e.id);
@@ -48,17 +36,38 @@ export function useSideElements(
       currentIds.some((id, i) => prevOrder[i] !== id) ||
       sideElements.some((e) => prevMap.get(e.id) !== e);
 
-    if (hasChanged) {
-      const newMap = new Map<string, IMessageElement>();
-      sideElements.forEach((e) => newMap.set(e.id, e));
-      knownSideElementsRef.current = newMap;
-      knownSideOrderRef.current = currentIds;
-      const shouldOpen = sideElements.some(
+    knownSideElementsRef.current = new Map(sideElements.map((e) => [e.id, e]));
+    knownSideOrderRef.current = currentIds;
+    const shouldOpen =
+      hasChanged &&
+      sideElements.some(
         (element) =>
           prevMap.get(element.id) !== element && element.autoExpand !== false
       );
-      const nextView = createMessageSideView(sideElements);
-      setSideView((current) => (current || shouldOpen ? nextView : current));
-    }
+    setSideView((current) => {
+      if (
+        current &&
+        messageSideViews.has(current) &&
+        current.elements.every((e) => e.display === 'page')
+      ) {
+        const currentElements = new Map(elements.map((e) => [e.id, e]));
+        const pages = current.elements
+          .map((e) => currentElements.get(e.id))
+          .filter((e): e is IMessageElement => e?.display === 'page');
+        if (pages.length === 0) {
+          return shouldOpen ? createMessageSideView(sideElements) : undefined;
+        }
+        return pages.length === current.elements.length &&
+          pages.every((e, i) => e === current.elements[i])
+          ? current
+          : createMessageSideView(pages);
+      }
+      if (sideElements.length === 0) {
+        return current && messageSideViews.has(current) ? undefined : current;
+      }
+      return hasChanged && (current || shouldOpen)
+        ? createMessageSideView(sideElements)
+        : current;
+    });
   }, [elements, setSideView]);
 }
