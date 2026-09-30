@@ -92,10 +92,11 @@ const MessagesContainer = ({ navigate }: Props) => {
   );
 
   useEffect(() => {
-    const sideElements = elements.filter(
-      (element) => element.display === 'side'
+    const previewElements = elements.filter(
+      (element) =>
+        element.display === 'side' || (element.display === 'page' && !navigate)
     );
-    if (sideElements.length === 0) {
+    if (previewElements.length === 0) {
       setSideView(undefined);
       return;
     }
@@ -106,15 +107,14 @@ const MessagesContainer = ({ navigate }: Props) => {
       if (!current) return current;
       const updatedElements = current.elements
         .map((selected) =>
-          sideElements.find((element) => element.id === selected.id)
+          previewElements.find((element) => element.id === selected.id)
         )
-        .filter(
-          (element): element is IMessageElement => element !== undefined
-        );
+        .filter((element): element is IMessageElement => element !== undefined);
       if (updatedElements.length === 0) {
         return undefined;
       }
       if (
+        updatedElements.length === current.elements.length &&
         updatedElements.every(
           (element, index) => element === current.elements[index]
         )
@@ -128,7 +128,7 @@ const MessagesContainer = ({ navigate }: Props) => {
           : current.title;
       return { ...current, title, elements: updatedElements };
     });
-  }, [elements, setSideView]);
+  }, [elements, navigate, setSideView]);
 
   const onElementRefClick = useCallback(
     (element: IMessageElement) => {

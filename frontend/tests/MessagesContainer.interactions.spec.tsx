@@ -69,6 +69,9 @@ function SideView() {
     <aside aria-label="Element preview" data-sidebar-key={view.key}>
       <p>{view.title}</p>
       <output aria-label="Preview URL">{view.elements[0]?.url}</output>
+      <output aria-label="Selected elements">
+        {view.elements.map((selected) => selected.id).join(',')}
+      </output>
       <button onClick={() => setView(undefined)}>Close preview</button>
     </aside>
   ) : null;
@@ -150,6 +153,80 @@ describe('MessagesContainer explicit preview intent', () => {
     expect(screen.getByLabelText('Preview URL')).toHaveTextContent(
       '/version-2.txt'
     );
+  });
+
+  it.each([0, 1])(
+    'removes selected element %i while retaining the other selection',
+    (removed) => {
+      const selected = [element('First'), element('Second')];
+      setElements(selected);
+      const { rerender } = render(
+        <RecoilRoot
+          initializeState={({ set }) =>
+            set(sideViewState, { title: 'Sources', elements: selected })
+          }
+        >
+          <MessagesContainer />
+          <SideView />
+        </RecoilRoot>
+      );
+      expect(screen.getByLabelText('Selected elements')).toHaveTextContent(
+        'First,Second'
+      );
+
+      const remaining = selected.filter((_, index) => index !== removed);
+      setElements(remaining);
+      rerender(
+        <RecoilRoot>
+          <MessagesContainer />
+          <SideView />
+        </RecoilRoot>
+      );
+
+      expect(screen.getByLabelText('Selected elements').textContent).toBe(
+        remaining[0].id
+      );
+      expect(screen.getByRole('complementary')).toHaveTextContent('Sources');
+    }
+  );
+
+  it('refreshes a page fallback preview and closes it when removed', () => {
+    const selected: IMessageElement = {
+      ...element('Page'),
+      display: 'page',
+      url: '/version-1.txt'
+    };
+    setElements([selected]);
+    const { rerender } = render(<App />);
+    fireEvent.click(screen.getByRole('link', { name: 'Page' }));
+    expect(screen.getByLabelText('Preview URL')).toHaveTextContent(
+      '/version-1.txt'
+    );
+
+    setElements([{ ...selected, name: 'Updated page', url: '/version-2.txt' }]);
+    rerender(<App />);
+    expect(screen.getByRole('complementary')).toHaveTextContent('Updated page');
+    expect(screen.getByLabelText('Preview URL')).toHaveTextContent(
+      '/version-2.txt'
+    );
+
+    setElements([element('Unrelated')]);
+    rerender(<App />);
+    expect(screen.queryByRole('complementary')).not.toBeInTheDocument();
+  });
+
+  it('navigates to page elements when a navigator is available', () => {
+    const navigate = vi.fn();
+    setElements([{ ...element('Page'), display: 'page' }]);
+    render(
+      <RecoilRoot>
+        <MessagesContainer navigate={navigate} />
+        <SideView />
+      </RecoilRoot>
+    );
+    fireEvent.click(screen.getByRole('link', { name: 'Page' }));
+    expect(navigate).toHaveBeenCalledWith('/element/Page');
+    expect(screen.queryByRole('complementary')).not.toBeInTheDocument();
   });
   it('preserves a custom title and sidebar key when content changes', () => {
     const selected = element('First');
